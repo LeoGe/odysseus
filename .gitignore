@@ -16,3 +16,6 @@ Cargo.lock
 
 /web/protocol/out/
 /compile/libraries/*
+
+# Leonies test folder to test stuff
+testMusicStore/

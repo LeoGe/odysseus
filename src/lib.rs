@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::env;
 
 use std::fs::File;
 use serde::{Serialize, Deserialize};
@@ -28,6 +29,7 @@ pub struct Playlist {
 pub struct Store {
     #[serde(skip)]
     root_path: PathBuf,
+    #[serde(default)]
     playlists: Vec<Playlist>,
 }
 
@@ -58,20 +60,7 @@ impl Store {
         let mut playlists: Store = toml::from_str(&source)?;
         playlists.root_path = path.to_path_buf();
 
-        // open music position file
-        let mut f = File::open(path.join("Positions.toml"))
-            .map_err(|e| StoreError::ConfMissing(path.to_path_buf(), e))?;
-
-        // load file into string
-        let mut source = String::new();
-        f.read_to_string(&mut source)?;
-
-        // parse and deserialize string to a vector of playlists
-        let mut positions: HashMap<String, (usize, usize)> = toml::from_str(&source)?;
-
         for pl in &mut playlists.playlists {
-            // add optional position to each playlist
-            pl.position = positions.remove(&pl.name);
             if pl.radio_url.is_none() {
                 pl.files = std::fs::read_dir(&playlists.root_path.join("files").join(&pl.name)).unwrap()
                     .filter_map(|x| x.ok())
@@ -80,11 +69,15 @@ impl Store {
             }
         }
 
-
-
         dbg!(&playlists);
 
         Ok(playlists)
+    }
+
+    /// Load a music store from PWD
+    pub fn from_pwd() -> Result<Store>{
+        let pwd = env::current_dir().unwrap();
+        Store::from_path(pwd)
     }
 
     /// Save the playlists configuration to a file
@@ -113,6 +106,11 @@ impl Store {
     /// Return a vector of all playlists
     pub fn playlists(&self) -> &[Playlist] {
         &self.playlists 
+    }
+
+    // Return root path of music store
+    pub fn root_path(&self) -> &Path {
+        &self.root_path
     }
 
     /// Return all playlists which do not have a card
